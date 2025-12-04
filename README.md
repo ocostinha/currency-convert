@@ -244,8 +244,8 @@ GET /api/v1/purchases/{id}?currency=Brazil-Real
 
 **Query Parameters:**
 
-- `currency`: Required, Country-Currency Description format (e.g., "Brazil-Real", "European
-  Union-Euro")
+- `currency`: Optional, Country-Currency Description format (e.g., "Brazil-Real", "European
+  Union-Euro"). Defaults to "United States-Dollar" if not provided
 
 **Error Responses:**
 
@@ -301,7 +301,7 @@ http://localhost:8080/api-docs
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/ocostinha/currency-convert
 cd felipe
 
 # Run the application
@@ -547,7 +547,7 @@ http://localhost:8080/h2-console
 
 ### Schema Migration
 
-Database schema is managed by Flyway. Migration scripts are located in:
+Flyway manages database schema. Migration scripts are located in:
 
 ```
 src/main/resources/db/migration/
@@ -563,8 +563,6 @@ src/main/resources/db/migration/
 | `description`      | VARCHAR(50)   | NOT NULL    |
 | `transaction_date` | DATE          | NOT NULL    |
 | `purchase_amount`  | DECIMAL(19,2) | NOT NULL    |
-| `created_at`       | TIMESTAMP     | NOT NULL    |
-| `updated_at`       | TIMESTAMP     | NOT NULL    |
 
 ## License
 
@@ -572,8 +570,4 @@ This project is proprietary software developed for coding assessment purposes.
 
 ## Support
 
-For issues, questions, or contributions, please contact the development team.
-
----
-
-**Built with ❤️ using Spring Boot and Hexagonal Architecture**
+For issues, questions, or contributions, please contact me.

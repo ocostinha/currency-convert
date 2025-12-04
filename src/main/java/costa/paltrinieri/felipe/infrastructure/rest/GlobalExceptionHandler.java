@@ -2,6 +2,8 @@ package costa.paltrinieri.felipe.infrastructure.rest;
 
 import costa.paltrinieri.felipe.core.exceptions.ConvertException;
 import costa.paltrinieri.felipe.core.exceptions.NotFoundException;
+import costa.paltrinieri.felipe.infrastructure.security.XssUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,72 +15,97 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     public static final String PROD_ENVIRONMENT = "prod";
+    private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @Value("${spring.profiles.active:dev}")
     private String activeProfile;
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex, HttpServletRequest request) {
         LOGGER.warn("Validation error: {}", ex.getMessage());
 
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
+        String message = ex.getBindingResult().getAllErrors().stream()
+            .map(error -> ((FieldError) error).getField() + ": " + error.getDefaultMessage())
+            .collect(Collectors.joining(", "));
 
-        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+        ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            HttpStatus.BAD_REQUEST.value(),
+            HttpStatus.BAD_REQUEST.getReasonPhrase(),
+            XssUtils.sanitize(message),
+            XssUtils.sanitize(request.getRequestURI())
+        );
+
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(NotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleNotFoundException(NotFoundException ex) {
+    public ResponseEntity<ErrorResponse> handleNotFoundException(NotFoundException ex, HttpServletRequest request) {
         LOGGER.info("Resource not found: {}", ex.getMessage());
 
-        Map<String, String> error = new HashMap<>();
-        error.put("error", ex.getMessage());
+        ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            HttpStatus.NOT_FOUND.value(),
+            HttpStatus.NOT_FOUND.getReasonPhrase(),
+            XssUtils.sanitize(ex.getMessage()),
+            XssUtils.sanitize(request.getRequestURI())
+        );
 
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<Map<String, String>> handleNoResourceFoundException(NoResourceFoundException ex) {
+    public ResponseEntity<ErrorResponse> handleNoResourceFoundException(NoResourceFoundException ex, HttpServletRequest request) {
         LOGGER.info("No resource found: {}", ex.getMessage());
 
-        Map<String, String> error = new HashMap<>();
-        error.put("error", "Resource not found");
+        ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            HttpStatus.NOT_FOUND.value(),
+            HttpStatus.NOT_FOUND.getReasonPhrase(),
+            "Resource not found",
+            XssUtils.sanitize(request.getRequestURI())
+        );
 
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(ConvertException.class)
-    public ResponseEntity<Map<String, String>> handleConvertException(ConvertException ex) {
+    public ResponseEntity<ErrorResponse> handleConvertException(ConvertException ex, HttpServletRequest request) {
         LOGGER.warn("Conversion error: {}", ex.getMessage());
 
-        Map<String, String> error = new HashMap<>();
-        error.put("error", ex.getMessage());
+        ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            HttpStatus.BAD_REQUEST.value(),
+            HttpStatus.BAD_REQUEST.getReasonPhrase(),
+            XssUtils.sanitize(ex.getMessage()),
+            XssUtils.sanitize(request.getRequestURI())
+        );
 
-        return new ResponseEntity<>(error, HttpStatus.UNPROCESSABLE_ENTITY);
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, String>> handleException(Exception ex) {
+    public ResponseEntity<ErrorResponse> handleException(Exception ex, HttpServletRequest request) {
         LOGGER.error("Internal server error", ex);
 
-        Map<String, String> error = new HashMap<>();
-        if (PROD_ENVIRONMENT.equals(activeProfile)) {
-            error.put("error", "An internal error occurred");
-        } else {
-            error.put("error", ex.getMessage());
-        }
+        String message = PROD_ENVIRONMENT.equals(activeProfile)
+                         ? "An internal error occurred"
+                         : ex.getMessage();
+
+        ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+            HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
+            XssUtils.sanitize(message),
+            XssUtils.sanitize(request.getRequestURI())
+        );
 
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }

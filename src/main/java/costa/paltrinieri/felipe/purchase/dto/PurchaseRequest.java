@@ -1,13 +1,13 @@
 package costa.paltrinieri.felipe.purchase.dto;
 
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 
 public class PurchaseRequest {
@@ -22,7 +22,6 @@ public class PurchaseRequest {
 
     @NotNull
     @DecimalMin(value = "0.01")
-    @Digits(integer = 10, fraction = 2)
     private BigDecimal purchaseAmount;
 
     public PurchaseRequest() {
@@ -49,7 +48,7 @@ public class PurchaseRequest {
     }
 
     public void setPurchaseAmount(final BigDecimal purchaseAmount) {
-        this.purchaseAmount = purchaseAmount;
+        this.purchaseAmount = purchaseAmount != null ? purchaseAmount.setScale(2, RoundingMode.HALF_UP) : null;
     }
 
 }

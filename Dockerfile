@@ -2,6 +2,8 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
+RUN mkdir -p /app/logs
+
 COPY target/*.jar app.jar
 
 ENV DB_URL=jdbc:h2:file:./db/codingTest \
